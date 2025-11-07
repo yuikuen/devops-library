@@ -7,6 +7,7 @@ import org.devops.*
 // New实例化
 def checkout = new Checkout()
 def build = new Build()
+def codeScan = new CodeScan()
 def notice = new Notice()
 def gitlab = new GitLab()
 def docker = new Docker()
@@ -19,23 +20,65 @@ pipeline {
 
     options {
         skipDefaultCheckout true
-        buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '180', numToKeepStr: '90')
+        timestamps()
+        buildDiscarder logRotator(daysToKeepStr: '180', numToKeepStr: '90')
         timeout(time: 1, unit: 'HOURS') // 设置全局超时时间
     }
 
     parameters {
-        choice choices: ['git@localhost:devops/devops-web-be.git',
-                         'git@localhost:devops/devops-web-fe.git',
+        choice choices: [
+                'git@gitserv.proaimltd.com.cn:proaimltd/devops-web-be.git',
+                'git@gitserv.proaimltd.com.cn:proaimltd/devops-web-fe.git',
+                'git@gitserv.proaimltd.com.cn:proaimltd/hnhf-bigscreen-fe.git',
         ], description: 'GitLab代码仓库地址', name: 'srcUrl'
-//        string defaultValue: 'v2.6.0', description: '注意：选择应用发布分支', name: 'branchName'
-        choice choices: ['v2.5.0', 'v2.5.1', 'v2.6.0', 'v2.7.0'],
-                description: '注意：选择应用发布分支（仅支持产品Release版本）', name: 'branchName'
-        extendedChoice defaultValue: '',
-                description: '注意：选择目标主机（IP-对应项目）', multiSelectDelimiter: ',',
-                name: 'targetHosts', quoteValue: false, saveJSONParameterToFile: false,
-                type: 'PT_CHECKBOX', value: '192.168.100.101-project01,192.168.100.101-project02,192.168.100.101-project03,' +
-                '192.168.100.101-project04',
-                visibleItemCount: 10
+
+        choice(name: 'refType', choices: ['branch', 'tags'], description: '请选择类型：branch=分支，tags=标签')
+        string(name: 'refName', defaultValue: 'v2.8.0', description: '填写分支或标签名')
+
+        activeChoice(
+                choiceType: 'PT_SINGLE_SELECT',
+                description: '选择目标主机',
+                filterLength: 1,
+                filterable: false,
+                name: 'targetHost',
+                script: groovyScript(
+                        fallbackScript: [classpath: [], oldScript: '', sandbox: true, script: ''],
+                        script: [classpath: [], oldScript: '', sandbox: true, script: '''
+                return [
+                    '192.168.100.127-项目A',
+                    '192.168.100.128-项目B',
+                ]
+            ''']
+                )
+        )
+
+        reactiveChoice(
+                choiceType: 'PT_SINGLE_SELECT',
+                description: '根据服务器动态显示环境',
+                filterLength: 1,
+                filterable: false,
+                name: 'envList',
+                referencedParameters: 'targetHost',
+                script: groovyScript(
+                        fallbackScript: [classpath: [], oldScript: '', sandbox: true, script: ''],
+                        script: [classpath: [], oldScript: '', sandbox: true, script: '''
+                    def envMap = [
+                        '192.168.100.127-项目A': ['dev','test','pre'],
+                        '192.168.100.128-项目B': ['test','prod'],
+                    ]
+    
+                    if (!targetHost) {
+                        return ['请先选择服务器']
+                    }
+    
+                    // 支持多选：聚合所有选中主机的环境并去重
+                    def servers = targetHost.tokenize(',')
+                    def envs = servers.collect { envMap[it.trim()] ?: [] }.flatten().unique()
+    
+                    return envs ?: ['-- 未定义环境，请联系运维 --']
+                ''']
+                )
+        )
     }
 
     environment {
@@ -66,6 +109,31 @@ pipeline {
 
     stages {
 
+        stage('Validate Parameters') {
+            steps {
+                script {
+                    def envMap = [
+                            '192.168.100.127-项目A': ['dev', 'test', 'pre'],
+                            '192.168.100.128-项目B': ['test', 'prod'],
+                    ]
+
+                    def hosts = params.targetHost.split(",").collect { it.trim() }
+                    def envSel = params.envList
+
+                    // 校验第一个服务器是否支持当前环境
+                    def firstHost = hosts[0]
+                    if (!envMap.containsKey(firstHost)) {
+                        error "❌ 服务器 ${firstHost} 未定义，请检查配置"
+                    }
+                    if (!envMap[firstHost].contains(envSel)) {
+                        error "❌ 环境 ${envSel} 不属于服务器 ${firstHost}，允许环境: ${envMap[firstHost]}"
+                    }
+
+                    echo "✅ 参数校验通过：${hosts} -> ${envSel}"
+                }
+            }
+        }
+
         stage('Clean Workspace') {
             steps {
                 cleanWs()
@@ -76,7 +144,7 @@ pipeline {
             steps {
                 script {
                     println("Checkout")
-                    checkout.GetCode("${params.srcUrl}", "${params.branchName}", "${env.gitUserPWDCredentialsId}")
+                    checkout.GetCode("${params.srcUrl}", "${params.refName}", "${params.refType}", "${env.gitUserPWDCredentialsId}")
                 }
             }
         }
@@ -116,12 +184,12 @@ pipeline {
                     // Git提交ID
                     env.commitId = gitlab.GetShortCommitIdByEightDigit()
                     // Git提交超链接
-                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.branchName}")
-                    // 服务版本号（推荐定义："${branchName}-${commitId}"）
-                    env.version = "${params.branchName}-${env.commitId}"
+                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.refName}")
+                    // 服务版本号（推荐定义："${refName}-${commitId}"）
+                    env.version = "${params.refName}-${env.commitId}"
 
                     // 修改Jenkins构建描述
-                    currentBuild.description = """ targetHosts：${params.targetHosts} \n serviceName：${env.serviceName} \n commitId：[${env.commitId}](${env.commitWebURL}) """
+                    currentBuild.description = """ targetHost：${params.targetHost} \n serviceName：${env.serviceName} \n commitId：[${env.commitId}](${env.commitWebURL}) """
                     // 修改Jenkins构建名称
                     currentBuild.displayName = "${env.version}"
                 }
@@ -133,6 +201,19 @@ pipeline {
                 script {
                     println("Build")
                     projectCustom.executeBuildByServiceName("${env.serviceName}")
+                    if ("${env.serviceName}" == "devops-web-fe") {
+                        try {
+                            println("Running CodeScan...")
+                            nodejs('nodejs-18') {
+                                codeScan.checkVueTscLint()
+                            }
+                        } catch (Exception e) {
+                            // 捕捉异常并输出错误信息，但不影响其他阶段的执行
+                            echo "CodeScan failed: ${e.getMessage()}"
+                            // 可选：将失败信息保存到日志中，或者标记失败
+                            currentBuild.result = 'SUCCESS'  // 让整个构建结果保持成功
+                        }
+                    }
                 }
             }
         }
@@ -144,15 +225,16 @@ pipeline {
                     env.filePath = fileConfig.filePath
                     env.fileSuffix = fileConfig.fileSuffix
                     env.newFileName = "${env.serviceName}-${env.version}.${env.fileSuffix}"
+
                     if (env.fileSuffix == "tar.gz") {
                         sh "cd ${env.filePath} && tar -zcvf ${env.newFileName} *"
                     }
 
                     def resourceLock = "docker-images-lock"
                     lock(resource: resourceLock, inversePrecedence: true) {
-                        if ("${env.serviceName}" == "devops-web-backend") {
-                            if (params.refName.startsWith("v2.5.") || params.refName.startsWith("v2.4.") || params.refName.startsWith("v2.3.")) {
-                                // v2.5.x及以下版本逻辑
+                        if ("${env.serviceName}" == "devops-web-be") {
+                            if (params.refName.startsWith("v2.5.") || params.refName.startsWith("v2.3.")) {
+                                // v2.5.x版本逻辑
                                 def originalFileName = sh(returnStdout: true, script: """
                             find ${env.filePath} -maxdepth 1 -type f -name "*${env.fileSuffix}"
                         """).trim()
@@ -188,11 +270,15 @@ pipeline {
         stage("AnsibleDeploy") {
             steps {
                 script {
-                    // 从选择的 targetHosts 中提取出 IP 地址部分，值格式为 IP-项目名称
-                    def targetHostList = params.targetHosts.split(",").collect { it.split("-")[0] }
+                    // 从选择的 targetHost 中提取出 IP 地址部分，值格式为 IP-项目名称
+                    def targetHostList = params.targetHost.split(",").collect { it.split("-")[0] }
 
                     // 将纯净的 IP 地址列表传递给 Ansible
-                    ansible.deployUsingAnsibleScript(targetHostList.join(','), "/opt/docker-app/${env.serviceName}/deploy.sh", "${env.version}")
+                    if ("${env.envList}" == "prod") {
+                        ansible.deployUsingAnsibleScript(targetHostList.join(','), "/opt/docker-app/${env.serviceName}/deploy.sh", "${env.version}")
+                    } else if ("${env.envList}" == "dev" || "${env.envList}" == "test" || "${env.envList}" == "pre") {
+                        ansible.deployUsingAnsibleScript(targetHostList.join(','), "/opt/docker-app/${env.serviceName}-${env.envList}/deploy.sh", "${env.version}")
+                    }
                 }
             }
         }
@@ -215,10 +301,6 @@ pipeline {
                 notice.dingTalkPluginNotice("${env.dingTalkRebotIdCredentialsId}")
             }
         }
-        /*always {
-            // clean workspace build
-            cleanWs()
-        }*/
     }
 
 }

@@ -99,3 +99,21 @@ static def getAccessDomainName(domainName) {
             break
     }
 }
+
+/**
+ * 根据主服务名返回服务列表（多服务或单服务）
+ * @param serviceName 主服务名
+ * @return List<String> 服务列表
+ */
+static def getServiceList(String serviceName) {
+    def services = [
+            "devops-web-be": [
+                    "devops-gateway",
+                    "devops-entrypoint",
+                    "devops-auth",
+                    "devops-sso-entrypoint"
+            ]
+    ]
+    // 未匹配时返回单服务列表
+    return services.containsKey(serviceName) ? services[serviceName] : [serviceName]
+}
