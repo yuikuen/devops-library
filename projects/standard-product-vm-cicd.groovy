@@ -27,9 +27,9 @@ pipeline {
 
     parameters {
         choice choices: [
-                'git@gitserv.proaimltd.com.cn:proaimltd/devops-web-be.git',
-                'git@gitserv.proaimltd.com.cn:proaimltd/devops-web-fe.git',
-                'git@gitserv.proaimltd.com.cn:proaimltd/hnhf-bigscreen-fe.git',
+                'git@localhost/devops/devops-web-be.git',
+                'git@localhost/devops/devops-web-fe.git',
+                'git@localhost/devops/devops-screen-fe.git',
         ], description: 'GitLab代码仓库地址', name: 'srcUrl'
 
         choice(name: 'refType', choices: ['branch', 'tags'], description: '请选择类型：branch=分支，tags=标签')

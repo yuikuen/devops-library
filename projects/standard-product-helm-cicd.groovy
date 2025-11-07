@@ -260,11 +260,11 @@ pipeline {
                         // 获取数据库配置
                         def getDbConfig = { envName ->
                             def map = [
-                                    dev01 : [url: "jdbc:mysql://192.168.100.108:3306/devops_dev01", user: "root", pass: "proaim@2013"],
-                                    dev02 : [url: "jdbc:mysql://192.168.100.109:3306/devops_dev02", user: "root", pass: "proaim@2013"],
-                                    test01: [url: "jdbc:mysql://192.168.100.111:3306/devops_test01", user: "root", pass: "proaim@2013"],
-                                    test02: [url: "jdbc:mysql://192.168.100.198:3306/devops_test02", user: "root", pass: "proaim@2013"],
-                                    test03: [url: "jdbc:mysql://192.168.100.112:3306/devops_test03", user: "root", pass: "proaim@2013"],
+                                    dev01 : [url: "jdbc:mysql://192.168.100.108:3306/devops_dev01", user: "root", pass: "your_pwd"],
+                                    dev02 : [url: "jdbc:mysql://192.168.100.109:3306/devops_dev02", user: "root", pass: "your_pwd"],
+                                    test01: [url: "jdbc:mysql://192.168.100.111:3306/devops_test01", user: "root", pass: "your_pwd"],
+                                    test02: [url: "jdbc:mysql://192.168.100.198:3306/devops_test02", user: "root", pass: "your_pwd"],
+                                    test03: [url: "jdbc:mysql://192.168.100.112:3306/devops_test03", user: "root", pass: "your_pwd"],
                             ]
                             return map[envName] ?: error("❌ 未找到环境 '${envName}' 的数据库配置")
                         }
