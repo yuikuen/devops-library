@@ -19,7 +19,7 @@ def K8sReleaseTemplateFileReplaceAndConvertToBase64(fileName, fileData, imagePat
     """
 
     // 获取标准输出返回内容（获取替换后的模板文件内容，封装到Groovy变量中）
-    newYaml = sh returnStdout: true, script: "cat ${fileName}"
+    def newYaml = sh returnStdout: true, script: "cat ${fileName}"
     // 转换文件内容编码格式：Base64
     return "${newYaml}".bytes.encodeBase64().toString()
 }
@@ -78,7 +78,7 @@ def HelmReleaseTemplateFileReplaceAndConvertToBase64(fileName, fileData, imageNa
     // 删除本地旧文件
     sh "rm -fr ${fileName}"
     // 替换模板文件内容
-    yamlData = readYaml text: "${fileData}"
+    def yamlData = readYaml text: "${fileData}"
     yamlData.image.repository = "${imageName}"
     yamlData.image.tag = "${imageTag}"
     // 根据文件内容生成新文件
@@ -86,7 +86,7 @@ def HelmReleaseTemplateFileReplaceAndConvertToBase64(fileName, fileData, imageNa
     sh "cat ${fileName}"
 
     // 获取标准输出返回内容（获取替换后的模板文件内容，封装到Groovy变量中）
-    newYaml = sh returnStdout: true, script: "cat ${fileName}"
+    def newYaml = sh returnStdout: true, script: "cat ${fileName}"
     // 转换文件内容编码格式：Base64
     return "${newYaml}".bytes.encodeBase64().toString()
 }
@@ -103,7 +103,7 @@ def HelmReleaseTemplateFileReplaceAndConvertToBase64(fileName, fileData, imageNa
  */
 def HelmReleaseTemplateFileReplace(filePath, domainName, accessDomainName, memory, replicaCount, Map projectParamsMap) {
     // 替换模板文件内容
-    yamlData = readYaml file: "${filePath}"
+    def yamlData = readYaml file: "${filePath}"
     yamlData.ingress.hosts[0].host = "${domainName}"
     if (projectParamsMap != null) {
         //yamlData.service[0].port = "${port}"

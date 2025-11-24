@@ -49,19 +49,19 @@ def executeBuildByServiceName(serviceName) {
 static def getProjectParamsMap(envList) {
     def map = [
             "dev01" : [
-                    "PARAMS": "--spring.config.additional-location=classpath:/config/devops/ \
+                    "PARAMS": "--spring.config.additional-location=classpath:/config/k8s/ \
                         --spring.profiles.active=dev1"
             ],
             "dev02" : [
-                    "PARAMS": "--spring.config.additional-location=classpath:/config/devops/ \
+                    "PARAMS": "--spring.config.additional-location=classpath:/config/k8s/ \
                         --spring.profiles.active=dev2"
             ],
             "test01": [
-                    "PARAMS": "--spring.config.additional-location=classpath:/config/devops/ \
+                    "PARAMS": "--spring.config.additional-location=classpath:/config/k8s/ \
                         --spring.profiles.active=test1"
             ],
             "test02": [
-                    "PARAMS": "--spring.config.additional-location=classpath:/config/devops/ \
+                    "PARAMS": "--spring.config.additional-location=classpath:/config/k8s/ \
                         --spring.profiles.active=test2"
             ]
     ]

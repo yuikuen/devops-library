@@ -4,7 +4,7 @@ package org.devops
  * 获取CommitId
  */
 def GetCommitId() {
-    commitId = sh returnStdout: true, script: "git rev-parse HEAD"
+    def commitId = sh returnStdout: true, script: "git rev-parse HEAD"
     return commitId - "\n"
 }
 
@@ -13,7 +13,7 @@ def GetCommitId() {
  * 命令：git rev-parse --short HEAD，输出：7位数commitId
  */
 def GetShortCommitId() {
-    commitId = sh returnStdout: true, script: "git rev-parse --short HEAD"
+    def commitId = sh returnStdout: true, script: "git rev-parse --short HEAD"
     return commitId - "\n"
 }
 
@@ -21,7 +21,7 @@ def GetShortCommitId() {
  * 获取Commit简短id
  */
 def GetShortCommitIdByEightDigit() {
-    commitId = sh returnStdout: true, script: "git rev-parse HEAD"
+    def commitId = sh returnStdout: true, script: "git rev-parse HEAD"
     commitId = commitId - "\n"
     return commitId[0..7]
 }
@@ -33,8 +33,8 @@ def GetShortCommitIdByEightDigit() {
  * @param branchName 分支名称
  */
 def GetCommitIdByApi(credentialsId, projectId, branchName) {
-    apiUrl = "projects/${projectId}/repository/branches/${branchName}"
-    response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
+    def apiUrl = "projects/${projectId}/repository/branches/${branchName}"
+    def response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
     response = readJSON text: response - "\n"
     return response.commit.id - "\n"
 }
@@ -46,8 +46,8 @@ def GetCommitIdByApi(credentialsId, projectId, branchName) {
  * @param branchName 分支名称
  */
 def GetShortCommitIdByApi(credentialsId, projectId, branchName) {
-    apiUrl = "projects/${projectId}/repository/branches/${branchName}"
-    response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
+    def apiUrl = "projects/${projectId}/repository/branches/${branchName}"
+    def response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
     response = readJSON text: response - "\n"
     return response.commit.short_id - "\n"
 }
@@ -59,8 +59,8 @@ def GetShortCommitIdByApi(credentialsId, projectId, branchName) {
  * @param branchName 分支名称
  */
 def GetCommitWebURLByApi(credentialsId, projectId, branchName) {
-    apiUrl = "projects/${projectId}/repository/branches/${branchName}"
-    response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
+    def apiUrl = "projects/${projectId}/repository/branches/${branchName}"
+    def response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
     response = readJSON text: response - "\n"
     return response.commit.web_url - "\n"
 }
@@ -76,8 +76,8 @@ def GetCommitWebURLByApi(credentialsId, projectId, branchName) {
  */
 def GetProjectId(credentialsId, groupName, projectName) {
     withCredentials([string(credentialsId: "${credentialsId}", variable: 'GITLAB_USER_TOKEN')]) {
-        apiUrl = "projects?search=${projectName}"
-        response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
+        def apiUrl = "projects?search=${projectName}"
+        def response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
         response = readJSON text: response - "\n"
         if (response != []) {
             for (r in response) {
@@ -99,9 +99,9 @@ def GetProjectId(credentialsId, groupName, projectName) {
 def GitLabRequest(credentialsId, method, apiUrl) {
     withCredentials([string(credentialsId: "${credentialsId}", variable: 'GITLAB_USER_TOKEN')]) {
         // GitLab仓库地址
-        registry = "http://192.168.100.150"
+        def registry = "http://192.168.100.150"
 
-        response = sh returnStdout: true,
+        def response = sh returnStdout: true,
                 script: """
                 curl --location --request ${method} \
                 ${registry}/api/v4/${apiUrl} \
@@ -121,8 +121,8 @@ def GitLabRequest(credentialsId, method, apiUrl) {
  * @param branchName 分支名称
  */
 def GetRepositoryFile(credentialsId, projectId, filePath, branchName) {
-    apiUrl = "/projects/${projectId}/repository/files/${filePath}/raw?ref=${branchName}"
-    response = GitLabRequest("${credentialsId}", 'GET', "${apiUrl}")
+    def apiUrl = "/projects/${projectId}/repository/files/${filePath}/raw?ref=${branchName}"
+    def response = GitLabRequest("${credentialsId}", 'GET', "${apiUrl}")
     return response
 }
 
@@ -160,9 +160,9 @@ def GitLabHttpRequest(credentialsId, method, apiUrl, requestBody) {
  * @param fileContent 文件内容
  */
 def CreateRepositoryFile(credentialsId, projectId, branchName, filePath, fileContent) {
-    apiUrl = "projects/${projectId}/repository/files/${filePath}"
-    requestBody = """{"branch": "${branchName}", "encoding":"base64", "content": "${fileContent}", "commit_message": "update a new file"}"""
-    response = GitLabHttpRequest("${credentialsId}", 'POST', "${apiUrl}", "${requestBody}")
+    def apiUrl = "projects/${projectId}/repository/files/${filePath}"
+    def requestBody = """{"branch": "${branchName}", "encoding":"base64", "content": "${fileContent}", "commit_message": "update a new file"}"""
+    def response = GitLabHttpRequest("${credentialsId}", 'POST', "${apiUrl}", "${requestBody}")
     println(response)
 }
 
@@ -175,8 +175,8 @@ def CreateRepositoryFile(credentialsId, projectId, branchName, filePath, fileCon
  * @param fileContent 文件内容
  */
 def UpdateRepositoryFile(credentialsId, projectId, branchName, filePath, fileContent) {
-    apiUrl = "projects/${projectId}/repository/files/${filePath}"
-    requestBody = """{"branch": "${branchName}", "encoding":"base64", "content": "${fileContent}", "commit_message": "update a new file"}"""
-    response = GitLabHttpRequest("${credentialsId}", 'PUT', "${apiUrl}", "${requestBody}")
+    def apiUrl = "projects/${projectId}/repository/files/${filePath}"
+    def requestBody = """{"branch": "${branchName}", "encoding":"base64", "content": "${fileContent}", "commit_message": "update a new file"}"""
+    def response = GitLabHttpRequest("${credentialsId}", 'PUT', "${apiUrl}", "${requestBody}")
     println(response)
 }

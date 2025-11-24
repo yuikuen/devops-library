@@ -139,7 +139,7 @@ def CodeScan_Sonar(sonarqubeUserTokenCredentialsId, gitlabUserTokenCredentialsId
         error "❌ 检测到分支名为空，SonarQube 扫描已终止！请检查 GitLab webhook 参数注入是否正确。"
     }
 
-    cliPath = "/opt/sonar-scanner/bin"
+    def cliPath = "/opt/sonar-scanner/bin"
     withSonarQubeEnv('SonarQube') { // Jenkins系统配置-SonarQube servers已配置的Name
         withCredentials([string(credentialsId: "${sonarqubeUserTokenCredentialsId}", variable: 'SONARQUBE_USER_TOKEN'),
                          string(credentialsId: "${gitlabUserTokenCredentialsId}", variable: 'GITLAB_USER_TOKEN')]) {
@@ -224,7 +224,7 @@ def getMergeRequestInfo(actionType, sourceBranch, targetBranch,
  * https://github.com/gabrie-allaigre/sonar-gitlab-plugin
  */
 def scanCodeWithSonarSkipUnchanged(sonarqubeUserTokenCredentialsId, gitlabUserTokenCredentialsId, commitId, projectId, sourceBranch, targetBranch, gitlabMergeRequestId) {
-    cliPath = "/opt/sonar-scanner/bin"
+    def cliPath = "/opt/sonar-scanner/bin"
 
     // 安全检查分支名
     if (!targetBranch || !sourceBranch) {
@@ -286,7 +286,7 @@ def scanCodeWithSonarSkipUnchanged(sonarqubeUserTokenCredentialsId, gitlabUserTo
  * @param profileName 质量配置名称
  */
 def InitQualityProfiles(lang, projectName, profileName) {
-    result = ProjectSearch(projectName)
+    def result = ProjectSearch(projectName)
     println("InitQualityProfiles.ProjectSearch：" + result)
 
     if (result == false) {
@@ -303,8 +303,8 @@ def InitQualityProfiles(lang, projectName, profileName) {
  * @param profileName 质量配置名称
  */
 def UpdateQualityProfiles(lang, projectName, profileName) {
-    apiUrl = "qualityprofiles/add_project?language=${lang}&project=${projectName}&qualityProfile=${profileName}"
-    response = SonarRequest("POST", apiUrl)
+    def apiUrl = "qualityprofiles/add_project?language=${lang}&project=${projectName}&qualityProfile=${profileName}"
+    def response = SonarRequest("POST", apiUrl)
 
     if (response.errors != true) {
         println("ERROR: UpdateQualityProfiles ${response.errors}...")
@@ -320,8 +320,8 @@ def UpdateQualityProfiles(lang, projectName, profileName) {
  * @param projectName 项目名称
  */
 def CreateProject(projectName) {
-    apiUrl = "projects/create?name=${projectName}&project=${projectName}"
-    response = SonarRequest("POST", apiUrl)
+    def apiUrl = "projects/create?name=${projectName}&project=${projectName}"
+    def response = SonarRequest("POST", apiUrl)
     println("apiUrl：" + apiUrl + "\nresponse：" + response)
     try {
         if (response.project.key == projectName) {
@@ -339,8 +339,8 @@ def CreateProject(projectName) {
  * @param projectName 项目名称
  */
 def ProjectSearch(projectName) {
-    apiUrl = "projects/search?projects=${projectName}"
-    response = SonarRequest("GET", apiUrl)
+    def apiUrl = "projects/search?projects=${projectName}"
+    def response = SonarRequest("GET", apiUrl)
     println("apiUrl：" + apiUrl + "\nresponse：" + response)
     if (response.paging.total == 0) {
         println("Project not found!.....")
@@ -358,9 +358,9 @@ def SonarRequest(method, apiUrl) {
     // 生成代码-cURL的 --header 'Authorization: Basic *******=' 添加至Jenkins 凭据
     withCredentials([string(credentialsId: "f7acd2a7-576e-4908-9e80-ceab6525cc50", variable: 'SONAR_TOKEN')]) {
         // Sonar接口地址
-        sonarApi = "http://192.168.100.150:9000/sonarqube/api"
+        def sonarApi = "http://192.168.100.150:9000/sonarqube/api"
 
-        response = sh returnStdout: true,
+        def response = sh returnStdout: true,
                 script: """
                 curl --location \
                     --request ${method} \

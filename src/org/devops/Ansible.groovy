@@ -36,7 +36,7 @@ def AnsibleDeploy(targetHosts, targetDir, serviceName, version, fileName, port) 
     """
 
     // 获取共享库资源文件内容（String字符串） - 发布脚本
-    fileData = libraryResource 'scripts/service.sh'
+    def fileData = libraryResource 'scripts/service.sh'
     // 将共享库资源文件内容写入文件
     writeFile file: 'service.sh', text: "${fileData}"
     sh "ls -a ; cat service.sh"

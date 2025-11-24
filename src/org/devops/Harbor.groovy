@@ -22,8 +22,8 @@ def DeleteArtifactTag(registry, credentialsId, projectName, repoName, tagName) {
     withCredentials([usernamePassword(credentialsId: "${credentialsId}",
             usernameVariable: 'HARBOR_USERNAME',
             passwordVariable: 'HARBOR_PASSWORD')]) {
-        harborAPI = "http://${registry}/api/v2.0/projects/${projectName}/repositories/${repoName}"
-        apiURL = "artifacts/${tagName}/tags/${tagName}"
+        def harborAPI = "http://${registry}/api/v2.0/projects/${projectName}/repositories/${repoName}"
+        def apiURL = "artifacts/${tagName}/tags/${tagName}"
         sh """ curl -X DELETE "${harborAPI}/${apiURL}" -H "accept: application/json" -u ${HARBOR_USERNAME}:${HARBOR_PASSWORD} """
     }
 }
@@ -42,15 +42,15 @@ def GetArtifactTag(registry, credentialsId, projectName, repoName) {
     withCredentials([usernamePassword(credentialsId: "${credentialsId}",
             usernameVariable: 'HARBOR_USERNAME',
             passwordVariable: 'HARBOR_PASSWORD')]) {
-        harborAPI = "http://${registry}/api/v2.0/projects/${projectName}/repositories/${repoName}"
-        apiURL = "artifacts?page=1&page_size=10"
-        response = sh returnStdout: true, script: """ curl -X GET "${harborAPI}/${apiURL}" -H "accept: application/json" -u ${HARBOR_USERNAME}:${HARBOR_PASSWORD} """
+        def harborAPI = "http://${registry}/api/v2.0/projects/${projectName}/repositories/${repoName}"
+        def apiURL = "artifacts?page=1&page_size=10"
+        def response = sh returnStdout: true, script: """ curl -X GET "${harborAPI}/${apiURL}" -H "accept: application/json" -u ${HARBOR_USERNAME}:${HARBOR_PASSWORD} """
         if ("" != "${response}" || "${response}".trim().length() > 0) {
             response = readJSON text: """ ${response - "\n"} """
         } else {
             response = readJSON text: """{"errors" : true}"""
         }
-        tags = []
+        def tags = []
         for (t in response[0].tags) {
             tags << t.name
         }
