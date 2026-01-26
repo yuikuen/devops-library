@@ -218,6 +218,149 @@ pipeline {
             }
         }
 
+        stage("Run Liquibase via Docker") {
+            when {
+                allOf {
+                    environment name: 'skipLiquibase', value: 'false'
+                    environment name: 'moduleType', value: 'be'
+                }
+            }
+            steps {
+                script {
+                    // 如果选择了 package-only，则提示并中止 Liquibase（DB 更新需要选择目标主机/项目）
+                    if (params.targetHost == 'package-only') {
+                        echo "⚠️ package-only 模式，跳过 Liquibase DB 更新阶段"
+                        return
+                    }
+
+                    sh "[ -d Liquibase ] || mkdir Liquibase"
+                    ws("${WORKSPACE}/Liquibase") {
+                        checkout.GetCode("${env.dbSrcUrl}", "main", "${env.gitUserPWDCredentialsId}")
+
+                        // IP -> projectCode 映射
+                        def hostNameMap = [
+                                '192.168.100.127': 'project01',
+                                '192.168.100.128': 'project01',
+                        ]
+
+                        def targetIp = params.targetHost.split("-")[0]
+                        def projectCode = hostNameMap[targetIp] ?: error("❌ 未找到对应项目编号: ${params.targetHost}")
+
+                        // 从 refName 中提取 vx.y.z 版本号（例如：v2.8.0_dev -> v2.8.0）
+                        // 使用立即提取方式避免 Matcher 对象序列化问题
+                        def refNameStr = params.refName.toString()
+                        def versionPattern = /^(v\d+\.\d+\.\d+)/
+                        def matcher = (refNameStr =~ versionPattern)
+                        def versionDir = matcher.find() ? matcher.group(1) : refNameStr
+                        matcher = null  // 释放 Matcher 引用，避免序列化问题
+                        echo "📦 refName: ${params.refName}，📦 versionDir: ${versionDir}"
+
+                        // DB 脚本目录（保持你已有的结构）
+                        env.upgradeDir = "${env.WORKSPACE}/projects/${projectCode}/${versionDir}/upgrade"
+                        def releaseBase = "${env.WORKSPACE}/projects/${projectCode}/${versionDir}"
+                        def searchPath = "/workspace/projects/${projectCode}/${versionDir}"
+                        def sqlFiles = []
+                        dir(releaseBase) {
+                            // 仅搜索 upgrade 目录下的 SQL 文件
+                            def foundFiles = findFiles(glob: 'upgrade/**/*.sql')
+                            foundFiles.each { f ->
+                                if (!f.directory) {
+                                    def filePath = f.path.replace('\\', '/')
+                                    def fullPath = "${releaseBase}/${filePath}"
+                                    // 验证文件是否包含 Liquibase 格式标记
+                                    def hasLiquibaseHeader = sh(
+                                            script: "head -n 5 '${fullPath}' | grep -q -- '-- liquibase formatted sql' && echo 'true' || echo 'false'",
+                                            returnStdout: true
+                                    ).trim() == 'true'
+                                    if (hasLiquibaseHeader) {
+                                        sqlFiles.add(filePath)
+                                    } else {
+                                        echo "⚠️ 跳过非 Liquibase 格式文件: ${filePath}"
+                                    }
+                                }
+                            }
+                        }
+                        if (sqlFiles.isEmpty()) {
+                            error "❌ 未在 ${releaseBase} 下找到任何 SQL 文件"
+                        }
+                        // 使用 ArrayList 确保可序列化
+                        def stripSqlExt = { String path ->
+                            path?.toLowerCase().endsWith('.sql') ? path[0..-5] : path
+                        }
+
+                        def sortedFiles = new ArrayList(sqlFiles)
+                        sortedFiles.sort { a, b ->
+                            def aBase = stripSqlExt(a)
+                            def bBase = stripSqlExt(b)
+
+                            def aSchema = aBase.toLowerCase().contains('schema') ? 0 : 1
+                            def bSchema = bBase.toLowerCase().contains('schema') ? 0 : 1
+                            def primary = (aSchema <=> bSchema)
+                            if (primary != 0) {
+                                return primary
+                            }
+
+                            def aLower = aBase.toLowerCase()
+                            def bLower = bBase.toLowerCase()
+                            def secondary = (aLower <=> bLower)
+                            if (secondary != 0) {
+                                return secondary
+                            }
+
+                            def lengthDiff = aBase.length() <=> bBase.length()
+                            if (lengthDiff != 0) {
+                                return lengthDiff
+                            }
+
+                            return aBase <=> bBase
+                        }
+                        echo "📂 ReleaseBase: ${releaseBase}"
+                        echo "🔍 SearchPath: ${searchPath}"
+                        echo "🧮 Sorted SQL files: ${sortedFiles}"
+
+                        // 动态拼接 JDBC URL（避免在多处维护 IP）
+                        env.DB_URL = "jdbc:mysql://${targetIp}:3306/Your_DB_Names_${params.envList}"
+                        env.DB_USER = "root"
+                        env.DB_PASS = "proaim@2013"
+                        echo "✅ 数据库配置加载成功：${env.DB_URL}"
+
+                        // 执行 Liquibase 更新（按 liquibaseFiles 顺序）
+                        def files = env.liquibaseFiles.split("\\|").collect { it?.trim() }
+                        def safeFileExists = { String path ->
+                            try {
+                                return fileExists(path)
+                            } catch (err) {
+                                def out = sh(script: "[ -f \"${path}\" ] && echo true || echo false", returnStdout: true).trim()
+                                return out == 'true'
+                            }
+                        }
+
+                        sortedFiles.eachWithIndex { changeLogFile, idx ->
+                            def hostPath = "${releaseBase}/${changeLogFile}"
+                            if (safeFileExists(hostPath)) {
+                                echo "📄 执行文件 ${idx + 1}/${sortedFiles.size()}: ${hostPath}"
+                                sh """
+                                    docker run --rm \
+                                      -e TZ=Asia/Shanghai \
+                                      -v "${env.WORKSPACE}:/workspace" \
+                                      --network host \
+                                      liquibase/liquibase:5.0.1 \
+                                      --searchPath='${searchPath}' \
+                                      --url='${env.DB_URL}' \
+                                      --username='${env.DB_USER}' \
+                                      --password='${env.DB_PASS}' \
+                                      --changeLogFile='${changeLogFile}' \
+                                      update
+                                """
+                            } else {
+                                echo "⚠️ 跳过不存在的文件: ${hostPath}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         stage("DockerBuild") {
             steps {
                 script {
