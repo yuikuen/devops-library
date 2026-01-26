@@ -319,7 +319,7 @@ pipeline {
                         echo "🧮 Sorted SQL files: ${sortedFiles}"
 
                         // 动态拼接 JDBC URL（避免在多处维护 IP）
-                        env.DB_URL = "jdbc:mysql://${targetIp}:3306/Your_DB_Names_${params.envList}"
+                        env.DB_URL = "jdbc:mysql://${targetIp}:3306/${env.productName}_${params.envList}"
                         env.DB_USER = "root"
                         env.DB_PASS = "proaim@2013"
                         echo "✅ 数据库配置加载成功：${env.DB_URL}"
