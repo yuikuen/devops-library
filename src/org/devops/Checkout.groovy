@@ -41,23 +41,31 @@ def GetCode(srcUrl, refName, credentialsId) {
  * @return
  */
 def GetCode(srcUrl, refName, refType, credentialsId) {
+    // 处理 Ref 名称，兼容 tag 和 branch
     def fullRef = "refs/${refType == 'tags' ? 'tags' : 'heads'}/${refName}"
 
     checkout([
             $class           : 'GitSCM',
             branches         : [[name: fullRef]],
             extensions       : [
+                    // 构建前清理工作区，解决 dirty workspace 导致的 submodule 配置残留问题
+                    [$class: 'CleanBeforeCheckout'],
+                    [$class : 'CloneOption',
+                     depth  : 1, // 启用浅克隆
+                     shallow: true, // 设置为 true 开启浅克隆
+                     timeout: 10
+                    ],
+                    // 设置检出超时时间（单位：分钟），防止网络慢导致任务卡死
+                    [$class: 'CheckoutOption', timeout: 20],
                     [
                             $class             : 'SubmoduleOption',
-                            disableSubmodules  : false,
-                            parentCredentials  : false,
+                            disableSubmodules  : true,
+                            parentCredentials  : true, // 确保子模块能用主账号权限
                             recursiveSubmodules: true, // 设置为true以递归检出子模块
-                            trackingSubmodules : false // 设置为true以跟踪子模块提交
+                            trackingSubmodules : false, // 设置为true以跟踪子模块提交
+                            timeout            : 20
                     ],
-                    [
-                            $class     : 'LocalBranch',
-                            localBranch: refName // 指定本地分支或标签名称，与远程同名
-                    ],
+                    [$class: 'LocalBranch', localBranch: refName],
             ],
             userRemoteConfigs: [[url: srcUrl, credentialsId: credentialsId]]
     ])
