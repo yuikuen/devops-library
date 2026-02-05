@@ -59,7 +59,19 @@ def GetShortCommitIdByApi(credentialsId, projectId, branchName) {
  * @param branchName 分支名称
  */
 def GetCommitWebURLByApi(credentialsId, projectId, branchName) {
-    def apiUrl = "projects/${projectId}/repository/branches/${branchName}"
+    return GetCommitWebURLByApi(credentialsId, projectId, branchName, 'branch')
+}
+
+/**
+ * 通过Api获取Commit Web URL（commit提交超链接）
+ * @param credentialsId GitLab用户Token访问凭据Id
+ * @param projectId 项目id
+ * @param refName 分支或标签名称
+ * @param refType 类型：branch/tags
+ */
+def GetCommitWebURLByApi(credentialsId, projectId, refName, refType) {
+    def type = (refType == 'tags') ? 'tags' : 'branches'
+    def apiUrl = "projects/${projectId}/repository/${type}/${refName}"
     def response = GitLabRequest("${credentialsId}", "GET", "${apiUrl}")
     response = readJSON text: response - "\n"
     return response.commit.web_url - "\n"

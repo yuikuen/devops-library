@@ -127,7 +127,7 @@ pipeline {
 
                     // commit id and web url
                     env.commitId = gitlab.GetShortCommitIdByEightDigit()
-                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.refName}")
+                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.refName}", "${params.refType}")
                     // 服务版本号（推荐定义："${refName}-${commitId}"）
                     env.version = "${params.refName}-${env.commitId}"
 

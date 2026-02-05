@@ -184,7 +184,7 @@ pipeline {
                     // Git提交ID
                     env.commitId = gitlab.GetShortCommitIdByEightDigit()
                     // Git提交超链接
-                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.refName}")
+                    env.commitWebURL = gitlab.GetCommitWebURLByApi("${env.gitlabUserTokenCredentialsId}", "${env.projectId}", "${params.refName}", "${params.refType}")
                     // 服务版本号（推荐定义："${refName}-${commitId}"）
                     env.version = "${params.refName}-${env.commitId}"
 
